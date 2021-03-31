@@ -5,23 +5,26 @@ def gray(img):
     return np.array([[(54*yi[2]+183*yi[1]+19*yi[0])/256 for yi in xi] for xi in img], dtype='uint8')
 
 #turn in to half size img
-def shrinkBy2(img):
-    retImg = np.array([[(int(img[i][j])+int(img[i][j+1])+int(img[i+1][j])+int(img[i+1][j+1]))/4            for j in range(0, img.shape[1]-1, 2)]            for i in range(0, img.shape[0]-1, 2)] , dtype='uint8')
-    return retImg
+def Smallimg(img):
+    smalimg = np.array([[(int(img[i][j])+int(img[i][j+1])+int(img[i+1][j])+int(img[i+1][j+1]))/4            for j in range(0, img.shape[1]-1, 2)]            for i in range(0, img.shape[0]-1, 2)] , dtype='uint8')
+    return smalimg
 
 #create threshold map
 def bitmap(img):
-    med = int(np.median(img))
+    #find midThreshold
+    mid = int(np.median(img))
     thresBitmap = np.array([[True if yi > med else False for yi in xi] for xi in img], dtype='bool')
+
     x, y = img.shape
     excluBitmap = np.full((x, y), True, dtype='bool')
+    #cut mid error
     for i in range(x):
         for j in range(y):
-            if abs(img[i][j] - med) < 5:
+            if abs(img[i][j] - mid) < 4:
                 excluBitmap[i][j] = False
     return (thresBitmap, excluBitmap)
 
-#shift gray img 
+#shift Bit img 
 def bitmapShift(bm, x, y):
     shifted = np.full(bm.shape, False, dtype='bool')
     if x > 0:
@@ -53,22 +56,25 @@ def imgShift(im, x, y):
 
 #find Great Shift
 def getExpShift(img0, img1):
-    smlImg0 = shrinkBy2(img0)
-    smlImg1 = shrinkBy2(img1)
+    smlImg0 = Smallimg(img0)
+    smlImg1 = Smallimg(img1)
     curShiftBits = getExpShift(smlImg0, smlImg1, 3)
     curShiftBits[0] *= 2
     curShiftBits[1] *= 2
-
+    #create bit map
     tb0, eb0 = bitmap(img0)
     tb1, eb1 = bitmap(img1)
+    #culc error
     minErr = img0.shape[0] * img0.shape[1]
 
+    #-1 ~ 1
     for i in range(-1, 2):
         for j in range(-1, 2):
             xs = curShiftBits[0] + i
             ys = curShiftBits[1] + j
             shifted_tb1 = bitmapShift(tb1, xs, ys)
             shifted_eb1 = bitmapShift(eb1, xs, ys)
+            #MTB logic   (img XOR shiftimg) AND mask 
             diff_b = np.logical_xor(tb0, shifted_tb1)
             diff_b = np.logical_and(diff_b, eb0)
             diff_b = np.logical_and(diff_b, shifted_eb1)
@@ -87,7 +93,9 @@ def align(img0, img1):
 
 def MTB(imgs_src):
     for i in range(1, len(imgs_src)):
+        #find Greate Shift
         x, y = align(imgs_src[0], imgs_src[1])
+        #shift
         ret.append(imgShift(imgs_src[i], x, y))
     return ret
 
