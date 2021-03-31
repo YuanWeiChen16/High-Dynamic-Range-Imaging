@@ -2,7 +2,7 @@ import numpy as np
 
 #turn img to gray
 def gray(img):
-    return np.array([[(54*yi[2]+183*yi[1]+19*yi[0])/256 for yi in xi] for xi in img], dtype='uint8')
+    return np.array([[(54*yi[2]+183*yi[1]+19*yi[0])/256 for yi in xi] for xi in img], dtype=int)
 
 #turn in to half size img
 def Smallimg(img):
@@ -13,10 +13,10 @@ def Smallimg(img):
 def bitmap(img):
     #find midThreshold
     mid = int(np.median(img))
-    thresBitmap = np.array([[True if yi > med else False for yi in xi] for xi in img], dtype='bool')
+    thresBitmap = np.array([[True if yi > med else False for yi in xi] for xi in img], dtype = bool)
 
     x, y = img.shape
-    excluBitmap = np.full((x, y), True, dtype='bool')
+    excluBitmap = np.full((x, y), True, dtype=bool)
     #cut mid error
     for i in range(x):
         for j in range(y):
@@ -26,7 +26,7 @@ def bitmap(img):
 
 #shift Bit img 
 def bitmapShift(bm, x, y):
-    shifted = np.full(bm.shape, False, dtype='bool')
+    shifted = np.full(bm.shape, False, dtype=bool)
     if x > 0:
         shifted[x:] = bm[:-x]
     elif x < 0:
@@ -41,7 +41,7 @@ def bitmapShift(bm, x, y):
 
 #shift RGB img
 def imgShift(im, x, y):
-    shifted = np.full(im.shape, 0, dtype='uint8')
+    shifted = np.full(im.shape, 0, dtype=int)
     if x > 0:
         shifted[x:] = im[:-x]
     elif x < 0:
@@ -74,6 +74,7 @@ def getExpShift(img0, img1):
             ys = curShiftBits[1] + j
             shifted_tb1 = bitmapShift(tb1, xs, ys)
             shifted_eb1 = bitmapShift(eb1, xs, ys)
+            
             #MTB logic   (img XOR shiftimg) AND mask 
             diff_b = np.logical_xor(tb0, shifted_tb1)
             diff_b = np.logical_and(diff_b, eb0)
