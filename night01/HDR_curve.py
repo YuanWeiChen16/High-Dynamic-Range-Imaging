@@ -67,21 +67,7 @@ def estimate_radiance(imgs, exps, curve):
             else:
                 rad[i][j] = np.sum(w * (g - exps))
     return rad
-
-def hdr_debvec(Z, img, exps):
-    hdr_img = np.ndarray(shape = (img[0].shape), dtype = float)
-
-    plt.figure(figsize=(10, 10))
-    for i in range(0, 3):
-        g = estimate_curve(Z[i], exps, 39)
-        plt.plot(g, range(256), i)
-        rad = estimate_radiance(img[:,:,:,i], exps, g)
-        hdr_img[:,:,i] = cv2.normalize(rad, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-    plt.ylabel('pixel value Z')
-    plt.xlabel('log exposure X')
-    plt.show()
-    return hdr_img
-
+    
 def Tone(img_src):
     #max l
     LMax = (int)(np.max(img_src))
@@ -109,70 +95,56 @@ def load(path_test):
         exposure_times += [float(exposure)]
     return filenames, exposure_times
 
-def read(files):
-    imageNum = len(files)
-    img_shape = cv2.imread(files[0]).shape
-    x_max = img_shape[0]
-    y_max = img_shape[1]
-
-    img = np.ndarray(shape = (imageNum, x_max, y_max, 3), dtype = int)
-    for i in range(len(files)):
-        img[i] = cv2.imread(files[i])
-    
-    return x_max, y_max, img
-
-def sampleImage(x_max, y_max, sampleNum, imageNum, mode):
-    random.seed(a = None, version = 2)
-    idx = np.random.randint(x_max, size = sampleNum)
-    idy = np.random.randint(y_max, size = sampleNum)
-    #index = np.random.uniform(low = [0, 0], high = [x_max, y_max], size = (sampleNum, 2))
-
-    Z = np.ndarray(shape = (3, sampleNum, imageNum), dtype = int)
-    pos = []
-    h_step, w_step = x_max // (sampleNum + 1), y_max // (sampleNum + 1)
-    for i in range(1, sampleNum + 1):
-        for j in range(1, sampleNum + 1):
-            pos.append((i * h_step, j * w_step))
-    
-    if mode == 'random':
-        for i in range(0, sampleNum):
-            for j in range(0, imageNum):
-                Z[0][i][j] = img[j][idx[i]][idy[i]][0]
-                Z[1][i][j] = img[j][idx[i]][idy[i]][1]
-                Z[2][i][j] = img[j][idx[i]][idy[i]][2]
-
-    elif mode == 'uniform':
-        for i, (x, y) in enumerate(pos):
-            for j in range(imageNum):
-                if i < 256:
-                    Z[0][i][j] = img[j][x][y][0]
-                    Z[1][i][j] = img[j][x][y][1]
-                    Z[2][i][j] = img[j][x][y][2]
-    return Z
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--img_path', type=str, default="")
-parser.add_argument('--sample_mode', type=str, default="random")
 config = parser.parse_args()
 
 files, exps = load(config.img_path)
-x_max, y_max, img = read(files)
+imageNum = len(files)
+img_shape = cv2.imread(files[0]).shape
+x_max = img_shape[0]
+y_max = img_shape[1]
 
-Z = sampleImage(x_max, y_max, sampleNum, imageNum, config.sample_mode)
+img = np.ndarray(shape = (imageNum, x_max, y_max, 3), dtype = int)
+for i in range(len(files)):
+    img[i] = cv2.imread(files[i])
 
-hdr_img = hdr_debvec(Z, img, exps)
 
+random.seed(a = None, version = 2)
+idx = np.random.randint(x_max, size = sampleNum)
+idy = np.random.randint(y_max, size = sampleNum)
+#index = np.random.uniform(low = [0, 0], high = [x_max, y_max], size = (sampleNum, 2))
+
+Z = np.ndarray(shape = (3, sampleNum, imageNum), dtype = int)
+
+for i in range(0, sampleNum):
+    for j in range(0, imageNum):
+        Z[0][i][j] = img[j][idx[i]][idy[i]][0]
+        Z[1][i][j] = img[j][idx[i]][idy[i]][1]
+        Z[2][i][j] = img[j][idx[i]][idy[i]][2]
+hdr_img = np.ndarray(shape = (img[0].shape), dtype = float)
+
+plt.figure(figsize=(10, 10))
+for i in range(0, 3):
+    g = estimate_curve(Z[i], exps, 30)
+    plt.plot(g, range(256), i)
+    rad = estimate_radiance(img[:,:,:,i], exps, g)
+    hdr_img[:,:,i] = cv2.normalize(rad, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+plt.ylabel('pixel value Z')
+plt.xlabel('log exposure X')
+plt.show()
+plt.savefig('response-curve.png')
 from matplotlib.pylab import cm
 colorize = cm.jet
 cmap = np.float32(cv2.cvtColor(np.uint8(hdr_img), cv2.COLOR_BGR2GRAY)/255.)
 cmap = colorize(cmap)
-cv2.imwrite(os.path.join(config.img_path, 'cmap.jpg'), np.uint8(cmap*255.))
+cv2.imwrite('cmap.jpg', np.uint8(cmap*255.))
 
 print(hdr_img)
-cv2.imwrite(os.path.join(config.img_path, 'hdr.jpg'), hdr_img)
+cv2.imwrite('hdr.jpg', hdr_img)
 hdr_tm = np.ndarray(shape = (img[0].shape), dtype = float)
 for i in range(0,3):
     hdr_tm[:,:,i] = Tone(hdr_img[:,:,i])
 
 output = cv2.normalize(hdr_tm, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-cv2.imwrite(os.path.join(config.img_path, 'hdr_tm.jpg'), output)
+cv2.imwrite('hdr_tm.jpg', output)
