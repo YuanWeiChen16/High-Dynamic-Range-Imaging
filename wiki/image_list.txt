@@ -1,4 +1,0 @@
-image+4m.jpg 16
-image+2m.jpg 4
-image-2m.jpg 0.25
-image-4m.jpg 0.0625

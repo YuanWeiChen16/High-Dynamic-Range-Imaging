@@ -1,0 +1,5 @@
+night01:
+https://github.com/tuvovan/HDRI-debevec-Python/tree/a29719a5fd957ae6bc8a5d772de193ef85aac1bf
+
+street, test:
+https://github.com/SSARCandy/HDR-imaging
