@@ -5,6 +5,7 @@ import math
 import cv2
 import os
 import argparse
+import MTB as mtb
 x_max = 480
 y_max = 640
 imageNum = 4
@@ -20,7 +21,7 @@ def weight(z):
 def estimate_curve(Z, exp, lamdba):
     z_max, z_min = 255., 0. 
     n = 255
-    A = np.zeros(shape = ((Z.shape[0] * Z.shape[1] + n + 1, n + Z.shape[0])), dtype=float)
+    A = np.zeros(shape = ((Z.shape[0] * Z.shape[1] + n, n + Z.shape[0] + 1)), dtype=float)
     b = np.zeros(shape = (A.shape[0], 1), dtype = float)
 
     k = 0
@@ -28,7 +29,7 @@ def estimate_curve(Z, exp, lamdba):
         for j in range(0, Z.shape[1]):
             wij = weight(Z[i][j])
             A[k][Z[i][j]] = wij
-            A[k][n + i] = -wij
+            A[k][n + i + 1] = -wij
             b[k][0] = wij * exps[j]
             k = k + 1
 
@@ -70,17 +71,17 @@ def estimate_radiance(imgs, exps, curve):
 
 def hdr_debvec(Z, img, exps):
     hdr_img = np.ndarray(shape = (img[0].shape), dtype = float)
-
+    rad = np.ndarray(shape = (img[0].shape), dtype = float)
     plt.figure(figsize=(10, 10))
     for i in range(0, 3):
         g = estimate_curve(Z[i], exps, 39)
         plt.plot(g, range(256), i)
-        rad = estimate_radiance(img[:,:,:,i], exps, g)
-        hdr_img[:,:,i] = cv2.normalize(rad, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+        rad[:,:,i] = estimate_radiance(img[:,:,:,i], exps, g)
+        hdr_img[:,:,i] = cv2.normalize(rad[:,:,i], None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
     plt.ylabel('pixel value Z')
     plt.xlabel('log exposure X')
     plt.show()
-    return hdr_img
+    return rad, hdr_img
 
 def Tone(img_src):
     #max l
@@ -128,11 +129,7 @@ def sampleImage(x_max, y_max, sampleNum, imageNum, mode):
     #index = np.random.uniform(low = [0, 0], high = [x_max, y_max], size = (sampleNum, 2))
 
     Z = np.ndarray(shape = (3, sampleNum, imageNum), dtype = int)
-    pos = []
-    h_step, w_step = x_max // (sampleNum + 1), y_max // (sampleNum + 1)
-    for i in range(1, sampleNum + 1):
-        for j in range(1, sampleNum + 1):
-            pos.append((i * h_step, j * w_step))
+
     
     if mode == 'random':
         for i in range(0, sampleNum):
@@ -140,14 +137,19 @@ def sampleImage(x_max, y_max, sampleNum, imageNum, mode):
                 Z[0][i][j] = img[j][idx[i]][idy[i]][0]
                 Z[1][i][j] = img[j][idx[i]][idy[i]][1]
                 Z[2][i][j] = img[j][idx[i]][idy[i]][2]
-
     elif mode == 'uniform':
+        pos = []
+        h_step, w_step = x_max // (sampleNum + 1), y_max // (sampleNum + 1)
+        for i in range(1, sampleNum + 1):
+            for j in range(1, sampleNum + 1):
+                pos.append((i * h_step, j * w_step))
         for i, (x, y) in enumerate(pos):
             for j in range(imageNum):
                 if i < 256:
                     Z[0][i][j] = img[j][x][y][0]
                     Z[1][i][j] = img[j][x][y][1]
                     Z[2][i][j] = img[j][x][y][2]
+
     return Z
 
 parser = argparse.ArgumentParser()
@@ -158,21 +160,22 @@ config = parser.parse_args()
 files, exps = load(config.img_path)
 x_max, y_max, img = read(files)
 
+img = np.asarray(mtb.MTB(img, 3))
+
 Z = sampleImage(x_max, y_max, sampleNum, imageNum, config.sample_mode)
 
-hdr_img = hdr_debvec(Z, img, exps)
-
+rad, hdr_img = hdr_debvec(Z, img, exps)
+print(rad.shape)
+print(hdr_img.shape)
 from matplotlib.pylab import cm
 colorize = cm.jet
 cmap = np.float32(cv2.cvtColor(np.uint8(hdr_img), cv2.COLOR_BGR2GRAY)/255.)
 cmap = colorize(cmap)
 cv2.imwrite(os.path.join(config.img_path, 'cmap.jpg'), np.uint8(cmap*255.))
 
-print(hdr_img)
 cv2.imwrite(os.path.join(config.img_path, 'hdr.jpg'), hdr_img)
 hdr_tm = np.ndarray(shape = (img[0].shape), dtype = float)
 for i in range(0,3):
-    hdr_tm[:,:,i] = Tone(hdr_img[:,:,i])
+    hdr_tm[:,:,i] = Tone(rad[:,:,i])
 
-output = cv2.normalize(hdr_tm, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-cv2.imwrite(os.path.join(config.img_path, 'hdr_tm.jpg'), output)
+cv2.imwrite(os.path.join(config.img_path, 'hdr_tm.jpg'), hdr_tm)

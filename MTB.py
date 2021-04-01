@@ -12,7 +12,7 @@ def Smallimg(img):
 #create threshold map
 def bitmap(img):
     #find midThreshold
-    mid = int(np.median(img))
+    med = int(np.median(img))
     thresBitmap = np.array([[True if yi > med else False for yi in xi] for xi in img], dtype = bool)
 
     x, y = img.shape
@@ -20,7 +20,7 @@ def bitmap(img):
     #cut mid error
     for i in range(x):
         for j in range(y):
-            if abs(img[i][j] - mid) < 4:
+            if abs(img[i][j] - med) < 4:
                 excluBitmap[i][j] = False
     return (thresBitmap, excluBitmap)
 
@@ -55,12 +55,15 @@ def imgShift(im, x, y):
     return shifted
 
 #find Great Shift
-def getExpShift(img0, img1):
-    smlImg0 = Smallimg(img0)
-    smlImg1 = Smallimg(img1)
-    curShiftBits = getExpShift(smlImg0, smlImg1, 3)
-    curShiftBits[0] *= 2
-    curShiftBits[1] *= 2
+def getExpShift(img0, img1, shiftBits):
+    if shiftBits > 0:
+        smlImg0 = Smallimg(img0)
+        smlImg1 = Smallimg(img1)
+        curShiftBits = getExpShift(smlImg0, smlImg1, shiftBits - 1)
+        curShiftBits[0] *= 2
+        curShiftBits[1] *= 2
+    else:
+        curShiftBits = [0, 0]
     #create bit map
     tb0, eb0 = bitmap(img0)
     tb1, eb1 = bitmap(img1)
@@ -86,16 +89,17 @@ def getExpShift(img0, img1):
     return ret
 
 #Align img 
-def align(img0, img1):
+def align(img0, img1, level):
     g0 = gray(img0)
     g1 = gray(img1)
-    return getExpShift(g0, g1)
+    return getExpShift(g0, g1, level)
 
 
-def MTB(imgs_src):
+def MTB(imgs_src, level):
+    ret = [imgs_src[0]]
     for i in range(1, len(imgs_src)):
         #find Greate Shift
-        x, y = align(imgs_src[0], imgs_src[1])
+        x, y = align(imgs_src[0], imgs_src[1], level)
         #shift
         ret.append(imgShift(imgs_src[i], x, y))
     return ret
