@@ -8,7 +8,7 @@ $ python main.py
     <--showPlot = bool> 
     <--mtb_level = int> 
     <--sample_mode = random/uniform> 
-    <lambda_ = int> 
+    <--lambda_ = int> 
 
  # example
 $ python main.py --img_path=./night01 --showPlot=True --mtb_level=6 --sample_mode=uniform lambda_=30
